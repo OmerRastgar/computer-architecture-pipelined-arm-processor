@@ -1,0 +1,1373 @@
+// Code your design here
+module MUX (A, B, sel, out);
+  
+  input [63:0] A;
+  input [63:0] B;
+  input sel;
+  output [63:0] out;
+  
+  assign out = (sel == 1'b0)? A : B;
+  
+endmodule
+
+module Parser (ins, opcode, rd, funct3, rs1, rs2, funct7);
+
+  input [31:0] ins;
+  
+  output [6:0] opcode;
+  output [4:0] rd;
+  output [2:0] funct3;
+  output [4:0] rs1;
+  output [4:0] rs2;
+  output [6:0] funct7;
+  
+  assign opcode = ins[6:0];
+  assign rd = ins[11:7];
+  assign funct3 = ins[14:12];
+  assign rs1 = ins[19:15];
+  assign rs2 = ins[24:20];
+  assign funct7 = ins[31:25];
+  
+endmodule
+
+module ImmGen (ins, imm_data);
+  
+  input [31:0] ins;
+  output reg [63:0] imm_data;
+  
+  always @ (ins)
+    begin
+      if (ins[6:5] == 2'b01)
+        begin
+          imm_data[4:0] = ins[11:7];
+          imm_data[11:5] = ins[31:25];
+        end
+
+      else if (ins[6:5] == 2'b00)
+        begin
+          imm_data[11:0] = ins[31:20];
+        end
+
+      else if (ins[6:5] == 2'b11)
+        begin
+          imm_data[3:0] = ins[11:8];
+          imm_data[9:4] = ins[30:25];
+          imm_data[10] = ins[7];
+          imm_data[11] = ins[31];
+        end
+
+      imm_data[63:12] = {52{(ins[31])}};
+    end
+endmodule
+
+
+module registerFile(clk, reset, wtData, rs1, rs2, rd, regWrite, rd1, rd2,r1,r2,r3,r4,r22,r23,r20,r21,r19,r18);
+  
+
+  input clk, reset;
+  input [63:0] wtData;
+  input [4:0] rs1;
+  input [4:0] rs2;
+  input [4:0] rd;
+  input regWrite;
+
+  output reg [63:0] rd1;
+  output reg [63:0] rd2;
+  output reg [63:0] r1,r2,r3,r4,r22,r23,r20,r21,r19,r18;
+
+  reg [63:0] register [31:0];
+
+
+
+
+  initial
+
+    begin
+
+      register[0] = 64'd0;
+register[1] = 64'd0;
+register[2] = 64'd0;
+register[3] = 64'd0;
+register[4] = 64'd0;
+register[5] = 64'd0;
+register[6] = 64'd0;
+register[7] = 64'd0;
+register[8] = 64'd0;
+register[9] = 64'd0;
+register[10] = 64'd0;
+register[11] = 64'd0;
+register[12] = 64'd0;
+register[13] = 64'd0;
+register[14] = 64'd0;
+register[15] = 64'd0;
+register[16] = 64'd0;
+register[17] = 64'd0;
+register[18] = 64'd0;
+register[19] = 64'd0;
+register[20] = 64'd0;
+register[21] = 64'd0;
+register[22] = 64'd0;
+register[23] = 64'd0;
+register[24] = 64'd0;
+register[25] = 64'd0;
+register[26] = 64'd0;
+register[27] = 64'd0;
+register[28] = 64'd0;
+register[29] = 64'd0;
+register[30] = 64'd0;
+register[31] = 64'd0;
+
+
+    end
+
+
+
+
+  always @ (*)
+
+    begin
+
+      rd1 = register[rs1];
+
+      rd2 = register[rs2];
+
+
+
+
+      if (reset == 1'b1)
+
+        begin
+
+          rd1 = 64'd0;
+
+          rd2 = 64'd0;
+
+        end
+
+    end
+
+
+
+  always @ (posedge clk)
+
+    begin
+
+      if (regWrite == 1'b1)
+
+        begin
+
+          register[rd] = wtData;
+
+        end
+
+
+    end
+  
+  always @ (*)
+
+    begin
+
+      r1=register[3];
+      r2=register[4];
+      r3=register[16];
+      r4=register[6];
+      r20=register[20];
+      r21=register[21];
+      r22=register[22];
+      r23=register[23];
+      r19= register[19];
+      r18=register[20];
+    end
+
+endmodule
+ 
+
+
+module ALU_64 (a, b, ALUop, result, zero, sign);
+  
+  input [63:0] a;
+  input [63:0] b;
+  input [3:0] ALUop;
+  
+  output reg [63:0] result;
+  output reg zero;
+  output reg sign;
+  
+  always @ (*)
+    begin
+  
+      if (ALUop[3:0] == 4'b0000)
+        begin
+          result = a & b;
+        end
+
+      else if (ALUop[3:0] == 4'b0001)
+        begin
+          result = a | b;
+        end
+
+      else if (ALUop[3:0] == 4'b0010)
+        begin
+          result = a + b;
+        end
+      
+      else if (ALUop[3:0] == 4'b0110)
+        begin
+          result = a - b;
+        end
+      
+      else if (ALUop[3:0] == 4'b1100)
+        begin
+          result = ~(a | b);
+        end
+      
+      zero = (result == 0)? 1'b1: 1'b0;
+      
+      sign = result[63];
+      
+    end
+  
+endmodule
+
+
+
+module Instruction_Memory (Instr_Add, Instruction);
+  
+  input [63:0] Instr_Add;
+  output [31:0] Instruction;
+  
+  reg [7:0] iMEM [175:0];
+  
+  initial
+    begin
+{iMEM[3], iMEM[2], iMEM[1], iMEM[0]} = 32'h00000513;
+{iMEM[7], iMEM[6], iMEM[5], iMEM[4]} = 32'h00500193;
+{iMEM[11], iMEM[10], iMEM[9], iMEM[8]} = 32'h01800593;
+{iMEM[15], iMEM[14], iMEM[13], iMEM[12]} = 32'h00300213;
+{iMEM[19], iMEM[18], iMEM[17], iMEM[16]} = 32'h00900813;
+{iMEM[23], iMEM[22], iMEM[21], iMEM[20]} = 32'h00400993;
+{iMEM[27], iMEM[26], iMEM[25], iMEM[24]} = 32'h00800313;
+{iMEM[31], iMEM[30], iMEM[29], iMEM[28]} = 32'h00800293;
+{iMEM[35], iMEM[34], iMEM[33], iMEM[32]} = 32'h00652023;
+{iMEM[39], iMEM[38], iMEM[37], iMEM[36]} = 32'h00352423;
+{iMEM[43], iMEM[42], iMEM[41], iMEM[40]} = 32'h00452823;
+{iMEM[47], iMEM[46], iMEM[45], iMEM[44]} = 32'h01052c23;
+{iMEM[51], iMEM[50], iMEM[49], iMEM[48]} = 32'h00800713;
+{iMEM[55], iMEM[54], iMEM[53], iMEM[52]} = 32'h00070913;
+{iMEM[59], iMEM[58], iMEM[57], iMEM[56]} = 32'h405909b3;
+{iMEM[63], iMEM[62], iMEM[61], iMEM[60]} = 32'h01250ab3;
+{iMEM[67], iMEM[66], iMEM[65], iMEM[64]} = 32'h01350a33;
+{iMEM[71], iMEM[70], iMEM[69], iMEM[68]} = 32'h000a2b03;
+{iMEM[75], iMEM[74], iMEM[73], iMEM[72]} = 32'h000aab83;
+{iMEM[79], iMEM[78], iMEM[77], iMEM[76]} = 32'h016bc863;
+{iMEM[83], iMEM[82], iMEM[81], iMEM[80]} = 32'h00870713;
+{iMEM[87], iMEM[86], iMEM[85], iMEM[84]} = 32'hfeb740e3;
+{iMEM[91], iMEM[90], iMEM[89], iMEM[88]} = 32'h00000c63;
+{iMEM[95], iMEM[94], iMEM[93], iMEM[92]} = 32'h017a2023;
+{iMEM[99], iMEM[98], iMEM[97], iMEM[96]} = 32'h016aa023;
+{iMEM[103], iMEM[102], iMEM[101], iMEM[100]} = 32'h40590933;
+{iMEM[107], iMEM[106], iMEM[105], iMEM[104]} = 32'hfc0906e3;
+{iMEM[111], iMEM[110], iMEM[109], iMEM[108]} = 32'hfc0956e3;
+ /*
+ {iMEM[167], iMEM[166], iMEM[165], iMEM[164]} = 32'h00032a03;
+{iMEM[171], iMEM[170], iMEM[169], iMEM[168]} = 32'h0003aa83;
+{iMEM[175], iMEM[174], iMEM[173], iMEM[172]} = 32'h00042b03;
+  */
+  end
+  
+  assign Instruction[7:0] = iMEM[Instr_Add];
+  assign Instruction[15:8] = iMEM[Instr_Add + 1'b1];
+  assign Instruction[23:16] = iMEM[Instr_Add + 2'b10];
+  assign Instruction[31:24] = iMEM[Instr_Add + 2'b11];
+  
+endmodule
+
+
+
+module Data_Memory (Mem_Addr, W_Data, clk, MemWrite, MemRead, Read_Data,d1,d2,d3,d4);
+  
+  input [63:0] Mem_Addr;
+  input [63:0] W_Data;
+  input clk, MemWrite, MemRead;
+  
+  output reg [63:0] Read_Data;
+  output reg [63:0] d1,d2,d3,d4;
+  
+  reg [7:0] DMem [63:0];
+  
+  initial 
+    begin
+      DMem[0] = 8'b00000000;
+      DMem[1] = 8'b00000000;
+      DMem[2] = 8'b00000000;
+      DMem[3] = 8'b00000000;
+      DMem[4] = 8'b00000000;
+      DMem[5] = 8'b00000000;
+      DMem[6] = 8'b00000000;
+      DMem[7] = 8'b00000000;
+      DMem[8] = 8'b00000000;
+      DMem[9] = 8'b00000000;
+      DMem[10] = 8'b00000000;
+      DMem[11] = 8'b00000000;
+      DMem[12] = 8'b00000000;
+      DMem[13] = 8'b00000000;
+      DMem[14] = 8'b00000000;
+      DMem[15] = 8'b00000000;
+      DMem[16] = 8'b00000000;
+      DMem[17] = 8'b00000000;
+      DMem[18] = 8'b00000000;
+      DMem[19] = 8'b00000000;
+      DMem[20] = 8'b00000000;
+      DMem[21] = 8'b00000000;
+      DMem[22] = 8'b00000000;
+      DMem[23] = 8'b00000000;
+      DMem[24] = 8'b00000000;
+      DMem[25] = 8'b00000000;
+      DMem[26] = 8'b00000000;
+      DMem[27] = 8'b00000000;
+      DMem[28] = 8'b00000000;
+      DMem[29] = 8'b00000000;
+      DMem[30] = 8'b00000000;
+      DMem[31] = 8'b00000000;
+      DMem[32] = 8'b00000000;
+      DMem[33] = 8'b00000000;
+      DMem[34] = 8'b00000000;
+      DMem[35] = 8'b00000000;
+      DMem[36] = 8'b00000000;
+      DMem[37] = 8'b00000000;
+      DMem[38] = 8'b00000000;
+      DMem[39] = 8'b00000000;
+      DMem[40] = 8'b00000000;
+      DMem[41] = 8'b00000000;
+      DMem[42] = 8'b00000000;
+      DMem[43] = 8'b00000000;
+      DMem[44] = 8'b00000000;
+      DMem[45] = 8'b00000000;
+      DMem[46] = 8'b00000000;
+      DMem[47] = 8'b00000000;
+      DMem[48] = 8'b00000000;
+      DMem[49] = 8'b00000000;
+      DMem[50] = 8'b00000000;
+      DMem[51] = 8'b00000000;
+      DMem[52] = 8'b00000000;
+      DMem[53] = 8'b00000000;
+      DMem[54] = 8'b00000000;
+      DMem[55] = 8'b00000000;
+      DMem[56] = 8'b00000000;
+      DMem[57] = 8'b00000000;
+      DMem[58] = 8'b00000000;
+      DMem[59] = 8'b00000000;
+      DMem[60] = 8'b00000000;
+      DMem[61] = 8'b00000000;
+      DMem[62] = 8'b00000000;
+      DMem[63] = 8'b00000000;
+    end
+  
+  always @ (posedge clk)
+    
+    begin
+      
+      if (MemWrite == 1'b1)
+        begin
+          
+          DMem[Mem_Addr] = W_Data[7:0];
+          DMem[Mem_Addr + 1'b1] = W_Data[15:8];
+          DMem[Mem_Addr + 2'b10] = W_Data[23:16];
+          DMem[Mem_Addr + 2'b11] = W_Data[31:24];
+          DMem[Mem_Addr + 3'b100] = W_Data[39:32];
+          DMem[Mem_Addr + 3'b101] = W_Data[47:40];
+          DMem[Mem_Addr + 3'b110] = W_Data[55:48];
+          DMem[Mem_Addr + 3'b111] = W_Data[63:56];
+          
+        end
+      
+    end
+  
+  always @ (*)
+    
+    begin
+      
+      if (MemRead == 1'b1)
+        
+        begin
+          
+          Read_Data[7:0] = DMem[Mem_Addr];
+          Read_Data[15:8] = DMem[Mem_Addr + 1'b1];
+          Read_Data[23:16] = DMem[Mem_Addr + 2'b10];
+          Read_Data[31:24] = DMem[Mem_Addr + 2'b11];
+          Read_Data[39:32] = DMem[Mem_Addr + 3'b100];
+          Read_Data[47:40] = DMem[Mem_Addr + 3'b101];
+          Read_Data[55:48] = DMem[Mem_Addr + 3'b110];
+          Read_Data[63:56] = DMem[Mem_Addr + 3'b111];
+          
+        end
+    end
+  always @ (*)
+    begin
+      d1 = DMem[0];
+      d2 = DMem[8];
+      d3 = DMem[16];
+      d4 = DMem[24];
+      
+    end
+  
+endmodule
+
+
+module Program_Counter (clk, reset, PC_In, PC_Out);
+  
+  input clk, reset;
+  input [63:0] PC_In;
+  
+  output reg [63:0] PC_Out;
+  
+  
+  always @ (posedge clk or posedge reset)
+    begin
+      
+      if (reset == 1'b1)
+        begin
+          
+          PC_Out = 64'd0;
+        end
+      
+      else
+        begin
+      
+          PC_Out = PC_In;
+        
+        end
+    
+    end
+  
+endmodule
+
+
+
+
+module Adder (a,b,out);
+  
+  input [63:0] a,b;
+  output [63:0] out;
+  
+  assign out = a + b;
+  
+endmodule
+
+
+module Control_Unit (Opcode, funct3, BEQ, BLT, BGE, MemRead, MemtoReg, ALUOp, MemWrite, ALUSrc, RegWrite);
+  
+  input [6:0] Opcode;
+  input [2:0] funct3;
+  
+  output reg BEQ, BLT, BGE, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite;
+  output reg [1:0] ALUOp;
+  
+  always @ (*)
+    begin
+      
+      case(Opcode)
+        
+        7'b0110011: begin           // R-Type
+          ALUSrc = 1'b0; 
+          MemtoReg = 1'b0; 
+          RegWrite = 1'b1; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0;
+          ALUOp = 2'b10;
+        end
+        
+        7'b0000011: begin          // I-Type (Load)
+          ALUSrc = 1'b1; 
+          MemtoReg = 1'b1; 
+          RegWrite = 1'b1; 
+          MemRead = 1'b1; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0;
+          ALUOp = 2'b00;
+        end
+        
+        7'b0100011: begin         // S-Type
+          ALUSrc = 1'b1; 
+          MemtoReg = 1'bx; 
+          RegWrite = 1'b0; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b1; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0; 
+          ALUOp = 2'b00;
+        end
+        
+        7'b1100011: begin         // B-Type (BEQ)
+          
+          case(funct3)
+            
+            3'b000: begin
+              ALUSrc = 1'b0; 
+              MemtoReg = 1'bx; 
+              RegWrite = 1'b0; 
+              MemRead = 1'b0; 
+              MemWrite = 1'b0; 
+              BEQ = 1'b1;
+              BLT = 1'b0;
+              BGE = 1'b0; 
+              ALUOp = 2'b01;
+            end
+            
+            3'b100: begin
+              ALUSrc = 1'b0; 
+              MemtoReg = 1'bx; 
+              RegWrite = 1'b0; 
+              MemRead = 1'b0; 
+              MemWrite = 1'b0; 
+              BEQ = 1'b0;
+              BLT = 1'b1;
+              BGE = 1'b0; 
+              ALUOp = 2'b01;
+            end
+            
+            3'b101: begin
+              ALUSrc = 1'b0; 
+              MemtoReg = 1'bx; 
+              RegWrite = 1'b0; 
+              MemRead = 1'b0; 
+              MemWrite = 1'b0; 
+              BEQ = 1'b0;
+              BLT = 1'b0;
+              BGE = 1'b1; 
+              ALUOp = 2'b01;
+            end
+          endcase
+          
+        end
+        
+        7'b0010011: begin         // I-Type (ADDI)
+          ALUSrc = 1'b1; 
+          MemtoReg = 1'b0; 
+          RegWrite = 1'b1; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0; 
+          ALUOp = 2'b00;
+        end
+        
+        default: begin           // Default
+          ALUSrc = 1'b0; 
+          MemtoReg = 1'b0; 
+          RegWrite = 1'b0; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0; 
+          ALUOp = 2'b00;
+        end
+        
+      endcase
+      
+    end
+  
+endmodule
+
+
+module ALU_Control (ALUOp, Funct, Operation);
+  
+  input [1:0] ALUOp;
+  input [3:0] Funct;
+  
+  output reg [3:0] Operation;
+  
+  always @ (*)
+    begin
+      
+      case(ALUOp)
+        
+        2'b00: Operation = 4'b0010;    // I/S-Type
+        
+        2'b01: Operation = 4'b0110;    // SB-Type (BEQ)
+        
+        2'b10: begin                   // R-Type
+          
+          case(Funct)
+            
+            4'b0000: Operation = 4'b0010;
+            
+            4'b1000: Operation = 4'b0110;
+            
+            4'b0111: Operation = 4'b0000;
+            
+            4'b0110: Operation = 4'b0001;
+            
+            default: Operation = 4'b0000;
+            
+          endcase
+          
+        end
+        
+        default: Operation = 4'b0000;
+        
+      endcase
+      
+    end
+  
+endmodule
+
+
+module RISC_V_Processor (clk, reset);
+  
+  input clk, reset;
+  
+  wire [63:0] PC_Out;
+  wire [63:0] out;
+  wire [31:0] Instruction;
+  wire [6:0] opcode;
+  wire [4:0] rd;
+  wire [2:0] funct3;
+  wire [4:0] rs1;
+  wire [4:0] rs2;
+  wire [6:0] funct7;
+  wire [63:0] imm_data;
+  wire [63:0] rd1;
+  wire [63:0] rd2;
+  wire BEQ, BLT, BGE, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite;
+  wire [1:0] ALUOp;
+  wire [63:0] out_M1;
+  wire [3:0] Operation;
+  wire [63:0] result;
+  wire zero;
+  wire sign;
+  wire [63:0] out_A2;
+  wire [63:0] out_M2;
+  wire [63:0] out_DM;
+  wire [63:0] wtData;
+  wire [63:0] d1,d2,d3,d4;
+  wire [63:0] r1,r2,r3,r4,r22,r23,r20,r21,r19,r18;
+
+  Program_Counter PC1(.clk(clk), .reset(reset), .PC_In(out_M2), .PC_Out(PC_Out) );
+
+
+  Adder A1 (.a(PC_Out), .b(64'd4), .out(out) );
+
+
+  Instruction_Memory I1(.Instr_Add(PC_Out), .Instruction(Instruction) );
+  
+  Parser P1( .ins(Instruction), .opcode(opcode), .rd(rd), .funct3(funct3), .rs1(rs1), .rs2(rs2), .funct7(funct7) );
+  
+  Control_Unit C1(.Opcode(opcode), .funct3(funct3), .BEQ(BEQ), .BLT(BLT), .BGE(BGE), .MemRead(MemRead), .MemtoReg(MemtoReg), .ALUOp(ALUOp), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite));
+  
+  ImmGen G1 (.ins(Instruction), .imm_data(imm_data) );
+  
+  registerFile R1( .clk(clk), .reset(reset), .wtData(wtData), .rs1(rs1), .rs2(rs2), .rd(rd), .regWrite(RegWrite), .rd1(rd1), .rd2(rd2) ,.r1(r1),.r2(r2),.r3(r3),.r4(r4),.r22(r22),.r23(r23),.r20(r20),.r21(r21),.r19(r19),.r18(r18));
+  
+  MUX M1(.A(rd2), .B(imm_data), .sel(ALUSrc), .out(out_M1) );
+  
+  ALU_Control C2( .ALUOp(ALUOp), .Funct({Instruction[30], funct3}), .Operation(Operation) );
+  
+  Adder A2 (.a(PC_Out), .b(imm_data << 1), .out(out_A2) );
+  
+  ALU_64 AL( .a(rd1), .b(out_M1), .ALUop(Operation), .result(result), .zero(zero), .sign(sign) );
+  
+  MUX M2 (.A(out), .B(out_A2), .sel((zero & BEQ) || (sign & BLT) || (~sign & BGE)), .out(out_M2));
+  
+  
+  Data_Memory D1(.Mem_Addr(result), .W_Data(rd2), .clk(clk), .MemWrite(MemWrite), .MemRead(MemRead), .Read_Data(out_DM),.d1(d1),.d2(d2),.d3(d3),.d4(d4));
+  
+  MUX M3 (.A(result), .B(out_DM), .sel(MemtoReg), .out(wtData) );
+  
+  
+endmodule
+  // Code your design here
+module MUX (A, B, sel, out);
+  
+  input [63:0] A;
+  input [63:0] B;
+  input sel;
+  output [63:0] out;
+  
+  assign out = (sel == 1'b0)? A : B;
+  
+endmodule
+
+module Parser (ins, opcode, rd, funct3, rs1, rs2, funct7);
+
+  input [31:0] ins;
+  
+  output [6:0] opcode;
+  output [4:0] rd;
+  output [2:0] funct3;
+  output [4:0] rs1;
+  output [4:0] rs2;
+  output [6:0] funct7;
+  
+  assign opcode = ins[6:0];
+  assign rd = ins[11:7];
+  assign funct3 = ins[14:12];
+  assign rs1 = ins[19:15];
+  assign rs2 = ins[24:20];
+  assign funct7 = ins[31:25];
+  
+endmodule
+
+module ImmGen (ins, imm_data);
+  
+  input [31:0] ins;
+  output reg [63:0] imm_data;
+  
+  always @ (ins)
+    begin
+      if (ins[6:5] == 2'b01)
+        begin
+          imm_data[4:0] = ins[11:7];
+          imm_data[11:5] = ins[31:25];
+        end
+
+      else if (ins[6:5] == 2'b00)
+        begin
+          imm_data[11:0] = ins[31:20];
+        end
+
+      else if (ins[6:5] == 2'b11)
+        begin
+          imm_data[3:0] = ins[11:8];
+          imm_data[9:4] = ins[30:25];
+          imm_data[10] = ins[7];
+          imm_data[11] = ins[31];
+        end
+
+      imm_data[63:12] = {52{(ins[31])}};
+    end
+endmodule
+
+
+module registerFile(clk, reset, wtData, rs1, rs2, rd, regWrite, rd1, rd2,r1,r2,r3,r4,r22,r23,r20,r21,r19,r18);
+  
+
+  input clk, reset;
+  input [63:0] wtData;
+  input [4:0] rs1;
+  input [4:0] rs2;
+  input [4:0] rd;
+  input regWrite;
+
+  output reg [63:0] rd1;
+  output reg [63:0] rd2;
+  output reg [63:0] r1,r2,r3,r4,r22,r23,r20,r21,r19,r18;
+
+  reg [63:0] register [31:0];
+
+
+
+
+  initial
+
+    begin
+
+      register[0] = 64'd0;
+register[1] = 64'd0;
+register[2] = 64'd0;
+register[3] = 64'd0;
+register[4] = 64'd0;
+register[5] = 64'd0;
+register[6] = 64'd0;
+register[7] = 64'd0;
+register[8] = 64'd0;
+register[9] = 64'd0;
+register[10] = 64'd0;
+register[11] = 64'd0;
+register[12] = 64'd0;
+register[13] = 64'd0;
+register[14] = 64'd0;
+register[15] = 64'd0;
+register[16] = 64'd0;
+register[17] = 64'd0;
+register[18] = 64'd0;
+register[19] = 64'd0;
+register[20] = 64'd0;
+register[21] = 64'd0;
+register[22] = 64'd0;
+register[23] = 64'd0;
+register[24] = 64'd0;
+register[25] = 64'd0;
+register[26] = 64'd0;
+register[27] = 64'd0;
+register[28] = 64'd0;
+register[29] = 64'd0;
+register[30] = 64'd0;
+register[31] = 64'd0;
+
+
+    end
+
+
+
+
+  always @ (*)
+
+    begin
+
+      rd1 = register[rs1];
+
+      rd2 = register[rs2];
+
+
+
+
+      if (reset == 1'b1)
+
+        begin
+
+          rd1 = 64'd0;
+
+          rd2 = 64'd0;
+
+        end
+
+    end
+
+
+
+  always @ (posedge clk)
+
+    begin
+
+      if (regWrite == 1'b1)
+
+        begin
+
+          register[rd] = wtData;
+
+        end
+
+
+    end
+  
+  always @ (*)
+
+    begin
+
+      r1=register[3];
+      r2=register[4];
+      r3=register[16];
+      r4=register[6];
+      r20=register[20];
+      r21=register[21];
+      r22=register[22];
+      r23=register[23];
+      r19= register[19];
+      r18=register[20];
+    end
+
+endmodule
+ 
+
+
+module ALU_64 (a, b, ALUop, result, zero, sign);
+  
+  input [63:0] a;
+  input [63:0] b;
+  input [3:0] ALUop;
+  
+  output reg [63:0] result;
+  output reg zero;
+  output reg sign;
+  
+  always @ (*)
+    begin
+  
+      if (ALUop[3:0] == 4'b0000)
+        begin
+          result = a & b;
+        end
+
+      else if (ALUop[3:0] == 4'b0001)
+        begin
+          result = a | b;
+        end
+
+      else if (ALUop[3:0] == 4'b0010)
+        begin
+          result = a + b;
+        end
+      
+      else if (ALUop[3:0] == 4'b0110)
+        begin
+          result = a - b;
+        end
+      
+      else if (ALUop[3:0] == 4'b1100)
+        begin
+          result = ~(a | b);
+        end
+      
+      zero = (result == 0)? 1'b1: 1'b0;
+      
+      sign = result[63];
+      
+    end
+  
+endmodule
+
+
+
+module Instruction_Memory (Instr_Add, Instruction);
+  
+  input [63:0] Instr_Add;
+  output [31:0] Instruction;
+  
+  reg [7:0] iMEM [175:0];
+  
+  initial
+    begin
+{iMEM[3], iMEM[2], iMEM[1], iMEM[0]} = 32'h00000513;
+{iMEM[7], iMEM[6], iMEM[5], iMEM[4]} = 32'h00500193;
+{iMEM[11], iMEM[10], iMEM[9], iMEM[8]} = 32'h01800593;
+{iMEM[15], iMEM[14], iMEM[13], iMEM[12]} = 32'h00300213;
+{iMEM[19], iMEM[18], iMEM[17], iMEM[16]} = 32'h00900813;
+{iMEM[23], iMEM[22], iMEM[21], iMEM[20]} = 32'h00400993;
+{iMEM[27], iMEM[26], iMEM[25], iMEM[24]} = 32'h00800313;
+{iMEM[31], iMEM[30], iMEM[29], iMEM[28]} = 32'h00800293;
+{iMEM[35], iMEM[34], iMEM[33], iMEM[32]} = 32'h00652023;
+{iMEM[39], iMEM[38], iMEM[37], iMEM[36]} = 32'h00352423;
+{iMEM[43], iMEM[42], iMEM[41], iMEM[40]} = 32'h00452823;
+{iMEM[47], iMEM[46], iMEM[45], iMEM[44]} = 32'h01052c23;
+{iMEM[51], iMEM[50], iMEM[49], iMEM[48]} = 32'h00800713;
+{iMEM[55], iMEM[54], iMEM[53], iMEM[52]} = 32'h00070913;
+{iMEM[59], iMEM[58], iMEM[57], iMEM[56]} = 32'h405909b3;
+{iMEM[63], iMEM[62], iMEM[61], iMEM[60]} = 32'h01250ab3;
+{iMEM[67], iMEM[66], iMEM[65], iMEM[64]} = 32'h01350a33;
+{iMEM[71], iMEM[70], iMEM[69], iMEM[68]} = 32'h000a2b03;
+{iMEM[75], iMEM[74], iMEM[73], iMEM[72]} = 32'h000aab83;
+{iMEM[79], iMEM[78], iMEM[77], iMEM[76]} = 32'h016bc863;
+{iMEM[83], iMEM[82], iMEM[81], iMEM[80]} = 32'h00870713;
+{iMEM[87], iMEM[86], iMEM[85], iMEM[84]} = 32'hfeb740e3;
+{iMEM[91], iMEM[90], iMEM[89], iMEM[88]} = 32'h00000c63;
+{iMEM[95], iMEM[94], iMEM[93], iMEM[92]} = 32'h017a2023;
+{iMEM[99], iMEM[98], iMEM[97], iMEM[96]} = 32'h016aa023;
+{iMEM[103], iMEM[102], iMEM[101], iMEM[100]} = 32'h40590933;
+{iMEM[107], iMEM[106], iMEM[105], iMEM[104]} = 32'hfc0906e3;
+{iMEM[111], iMEM[110], iMEM[109], iMEM[108]} = 32'hfc0956e3;
+ /*
+ {iMEM[167], iMEM[166], iMEM[165], iMEM[164]} = 32'h00032a03;
+{iMEM[171], iMEM[170], iMEM[169], iMEM[168]} = 32'h0003aa83;
+{iMEM[175], iMEM[174], iMEM[173], iMEM[172]} = 32'h00042b03;
+  */
+  end
+  
+  assign Instruction[7:0] = iMEM[Instr_Add];
+  assign Instruction[15:8] = iMEM[Instr_Add + 1'b1];
+  assign Instruction[23:16] = iMEM[Instr_Add + 2'b10];
+  assign Instruction[31:24] = iMEM[Instr_Add + 2'b11];
+  
+endmodule
+
+
+
+module Data_Memory (Mem_Addr, W_Data, clk, MemWrite, MemRead, Read_Data,d1,d2,d3,d4);
+  
+  input [63:0] Mem_Addr;
+  input [63:0] W_Data;
+  input clk, MemWrite, MemRead;
+  
+  output reg [63:0] Read_Data;
+  output reg [63:0] d1,d2,d3,d4;
+  
+  reg [7:0] DMem [63:0];
+  
+  initial 
+    begin
+      DMem[0] = 8'b00000000;
+      DMem[1] = 8'b00000000;
+      DMem[2] = 8'b00000000;
+      DMem[3] = 8'b00000000;
+      DMem[4] = 8'b00000000;
+      DMem[5] = 8'b00000000;
+      DMem[6] = 8'b00000000;
+      DMem[7] = 8'b00000000;
+      DMem[8] = 8'b00000000;
+      DMem[9] = 8'b00000000;
+      DMem[10] = 8'b00000000;
+      DMem[11] = 8'b00000000;
+      DMem[12] = 8'b00000000;
+      DMem[13] = 8'b00000000;
+      DMem[14] = 8'b00000000;
+      DMem[15] = 8'b00000000;
+      DMem[16] = 8'b00000000;
+      DMem[17] = 8'b00000000;
+      DMem[18] = 8'b00000000;
+      DMem[19] = 8'b00000000;
+      DMem[20] = 8'b00000000;
+      DMem[21] = 8'b00000000;
+      DMem[22] = 8'b00000000;
+      DMem[23] = 8'b00000000;
+      DMem[24] = 8'b00000000;
+      DMem[25] = 8'b00000000;
+      DMem[26] = 8'b00000000;
+      DMem[27] = 8'b00000000;
+      DMem[28] = 8'b00000000;
+      DMem[29] = 8'b00000000;
+      DMem[30] = 8'b00000000;
+      DMem[31] = 8'b00000000;
+      DMem[32] = 8'b00000000;
+      DMem[33] = 8'b00000000;
+      DMem[34] = 8'b00000000;
+      DMem[35] = 8'b00000000;
+      DMem[36] = 8'b00000000;
+      DMem[37] = 8'b00000000;
+      DMem[38] = 8'b00000000;
+      DMem[39] = 8'b00000000;
+      DMem[40] = 8'b00000000;
+      DMem[41] = 8'b00000000;
+      DMem[42] = 8'b00000000;
+      DMem[43] = 8'b00000000;
+      DMem[44] = 8'b00000000;
+      DMem[45] = 8'b00000000;
+      DMem[46] = 8'b00000000;
+      DMem[47] = 8'b00000000;
+      DMem[48] = 8'b00000000;
+      DMem[49] = 8'b00000000;
+      DMem[50] = 8'b00000000;
+      DMem[51] = 8'b00000000;
+      DMem[52] = 8'b00000000;
+      DMem[53] = 8'b00000000;
+      DMem[54] = 8'b00000000;
+      DMem[55] = 8'b00000000;
+      DMem[56] = 8'b00000000;
+      DMem[57] = 8'b00000000;
+      DMem[58] = 8'b00000000;
+      DMem[59] = 8'b00000000;
+      DMem[60] = 8'b00000000;
+      DMem[61] = 8'b00000000;
+      DMem[62] = 8'b00000000;
+      DMem[63] = 8'b00000000;
+    end
+  
+  always @ (posedge clk)
+    
+    begin
+      
+      if (MemWrite == 1'b1)
+        begin
+          
+          DMem[Mem_Addr] = W_Data[7:0];
+          DMem[Mem_Addr + 1'b1] = W_Data[15:8];
+          DMem[Mem_Addr + 2'b10] = W_Data[23:16];
+          DMem[Mem_Addr + 2'b11] = W_Data[31:24];
+          DMem[Mem_Addr + 3'b100] = W_Data[39:32];
+          DMem[Mem_Addr + 3'b101] = W_Data[47:40];
+          DMem[Mem_Addr + 3'b110] = W_Data[55:48];
+          DMem[Mem_Addr + 3'b111] = W_Data[63:56];
+          
+        end
+      
+    end
+  
+  always @ (*)
+    
+    begin
+      
+      if (MemRead == 1'b1)
+        
+        begin
+          
+          Read_Data[7:0] = DMem[Mem_Addr];
+          Read_Data[15:8] = DMem[Mem_Addr + 1'b1];
+          Read_Data[23:16] = DMem[Mem_Addr + 2'b10];
+          Read_Data[31:24] = DMem[Mem_Addr + 2'b11];
+          Read_Data[39:32] = DMem[Mem_Addr + 3'b100];
+          Read_Data[47:40] = DMem[Mem_Addr + 3'b101];
+          Read_Data[55:48] = DMem[Mem_Addr + 3'b110];
+          Read_Data[63:56] = DMem[Mem_Addr + 3'b111];
+          
+        end
+    end
+  always @ (*)
+    begin
+      d1 = DMem[0];
+      d2 = DMem[8];
+      d3 = DMem[16];
+      d4 = DMem[24];
+      
+    end
+  
+endmodule
+
+
+module Program_Counter (clk, reset, PC_In, PC_Out);
+  
+  input clk, reset;
+  input [63:0] PC_In;
+  
+  output reg [63:0] PC_Out;
+  
+  
+  always @ (posedge clk or posedge reset)
+    begin
+      
+      if (reset == 1'b1)
+        begin
+          
+          PC_Out = 64'd0;
+        end
+      
+      else
+        begin
+      
+          PC_Out = PC_In;
+        
+        end
+    
+    end
+  
+endmodule
+
+
+
+
+module Adder (a,b,out);
+  
+  input [63:0] a,b;
+  output [63:0] out;
+  
+  assign out = a + b;
+  
+endmodule
+
+
+module Control_Unit (Opcode, funct3, BEQ, BLT, BGE, MemRead, MemtoReg, ALUOp, MemWrite, ALUSrc, RegWrite);
+  
+  input [6:0] Opcode;
+  input [2:0] funct3;
+  
+  output reg BEQ, BLT, BGE, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite;
+  output reg [1:0] ALUOp;
+  
+  always @ (*)
+    begin
+      
+      case(Opcode)
+        
+        7'b0110011: begin           // R-Type
+          ALUSrc = 1'b0; 
+          MemtoReg = 1'b0; 
+          RegWrite = 1'b1; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0;
+          ALUOp = 2'b10;
+        end
+        
+        7'b0000011: begin          // I-Type (Load)
+          ALUSrc = 1'b1; 
+          MemtoReg = 1'b1; 
+          RegWrite = 1'b1; 
+          MemRead = 1'b1; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0;
+          ALUOp = 2'b00;
+        end
+        
+        7'b0100011: begin         // S-Type
+          ALUSrc = 1'b1; 
+          MemtoReg = 1'bx; 
+          RegWrite = 1'b0; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b1; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0; 
+          ALUOp = 2'b00;
+        end
+        
+        7'b1100011: begin         // B-Type (BEQ)
+          
+          case(funct3)
+            
+            3'b000: begin
+              ALUSrc = 1'b0; 
+              MemtoReg = 1'bx; 
+              RegWrite = 1'b0; 
+              MemRead = 1'b0; 
+              MemWrite = 1'b0; 
+              BEQ = 1'b1;
+              BLT = 1'b0;
+              BGE = 1'b0; 
+              ALUOp = 2'b01;
+            end
+            
+            3'b100: begin
+              ALUSrc = 1'b0; 
+              MemtoReg = 1'bx; 
+              RegWrite = 1'b0; 
+              MemRead = 1'b0; 
+              MemWrite = 1'b0; 
+              BEQ = 1'b0;
+              BLT = 1'b1;
+              BGE = 1'b0; 
+              ALUOp = 2'b01;
+            end
+            
+            3'b101: begin
+              ALUSrc = 1'b0; 
+              MemtoReg = 1'bx; 
+              RegWrite = 1'b0; 
+              MemRead = 1'b0; 
+              MemWrite = 1'b0; 
+              BEQ = 1'b0;
+              BLT = 1'b0;
+              BGE = 1'b1; 
+              ALUOp = 2'b01;
+            end
+          endcase
+          
+        end
+        
+        7'b0010011: begin         // I-Type (ADDI)
+          ALUSrc = 1'b1; 
+          MemtoReg = 1'b0; 
+          RegWrite = 1'b1; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0; 
+          ALUOp = 2'b00;
+        end
+        
+        default: begin           // Default
+          ALUSrc = 1'b0; 
+          MemtoReg = 1'b0; 
+          RegWrite = 1'b0; 
+          MemRead = 1'b0; 
+          MemWrite = 1'b0; 
+          BEQ = 1'b0;
+          BLT = 1'b0;
+          BGE = 1'b0; 
+          ALUOp = 2'b00;
+        end
+        
+      endcase
+      
+    end
+  
+endmodule
+
+
+module ALU_Control (ALUOp, Funct, Operation);
+  
+  input [1:0] ALUOp;
+  input [3:0] Funct;
+  
+  output reg [3:0] Operation;
+  
+  always @ (*)
+    begin
+      
+      case(ALUOp)
+        
+        2'b00: Operation = 4'b0010;    // I/S-Type
+        
+        2'b01: Operation = 4'b0110;    // SB-Type (BEQ)
+        
+        2'b10: begin                   // R-Type
+          
+          case(Funct)
+            
+            4'b0000: Operation = 4'b0010;
+            
+            4'b1000: Operation = 4'b0110;
+            
+            4'b0111: Operation = 4'b0000;
+            
+            4'b0110: Operation = 4'b0001;
+            
+            default: Operation = 4'b0000;
+            
+          endcase
+          
+        end
+        
+        default: Operation = 4'b0000;
+        
+      endcase
+      
+    end
+  
+endmodule
+
+
+module RISC_V_Processor (clk, reset);
+  
+  input clk, reset;
+  
+  wire [63:0] PC_Out;
+  wire [63:0] out;
+  wire [31:0] Instruction;
+  wire [6:0] opcode;
+  wire [4:0] rd;
+  wire [2:0] funct3;
+  wire [4:0] rs1;
+  wire [4:0] rs2;
+  wire [6:0] funct7;
+  wire [63:0] imm_data;
+  wire [63:0] rd1;
+  wire [63:0] rd2;
+  wire BEQ, BLT, BGE, MemRead, MemtoReg, MemWrite, ALUSrc, RegWrite;
+  wire [1:0] ALUOp;
+  wire [63:0] out_M1;
+  wire [3:0] Operation;
+  wire [63:0] result;
+  wire zero;
+  wire sign;
+  wire [63:0] out_A2;
+  wire [63:0] out_M2;
+  wire [63:0] out_DM;
+  wire [63:0] wtData;
+  wire [63:0] d1,d2,d3,d4;
+  wire [63:0] r1,r2,r3,r4,r22,r23,r20,r21,r19,r18;
+
+  Program_Counter PC1(.clk(clk), .reset(reset), .PC_In(out_M2), .PC_Out(PC_Out) );
+
+
+  Adder A1 (.a(PC_Out), .b(64'd4), .out(out) );
+
+
+  Instruction_Memory I1(.Instr_Add(PC_Out), .Instruction(Instruction) );
+  
+  Parser P1( .ins(Instruction), .opcode(opcode), .rd(rd), .funct3(funct3), .rs1(rs1), .rs2(rs2), .funct7(funct7) );
+  
+  Control_Unit C1(.Opcode(opcode), .funct3(funct3), .BEQ(BEQ), .BLT(BLT), .BGE(BGE), .MemRead(MemRead), .MemtoReg(MemtoReg), .ALUOp(ALUOp), .MemWrite(MemWrite), .ALUSrc(ALUSrc), .RegWrite(RegWrite));
+  
+  ImmGen G1 (.ins(Instruction), .imm_data(imm_data) );
+  
+  registerFile R1( .clk(clk), .reset(reset), .wtData(wtData), .rs1(rs1), .rs2(rs2), .rd(rd), .regWrite(RegWrite), .rd1(rd1), .rd2(rd2) ,.r1(r1),.r2(r2),.r3(r3),.r4(r4),.r22(r22),.r23(r23),.r20(r20),.r21(r21),.r19(r19),.r18(r18));
+  
+  MUX M1(.A(rd2), .B(imm_data), .sel(ALUSrc), .out(out_M1) );
+  
+  ALU_Control C2( .ALUOp(ALUOp), .Funct({Instruction[30], funct3}), .Operation(Operation) );
+  
+  Adder A2 (.a(PC_Out), .b(imm_data << 1), .out(out_A2) );
+  
+  ALU_64 AL( .a(rd1), .b(out_M1), .ALUop(Operation), .result(result), .zero(zero), .sign(sign) );
+  
+  MUX M2 (.A(out), .B(out_A2), .sel((zero & BEQ) || (sign & BLT) || (~sign & BGE)), .out(out_M2));
+  
+  
+  Data_Memory D1(.Mem_Addr(result), .W_Data(rd2), .clk(clk), .MemWrite(MemWrite), .MemRead(MemRead), .Read_Data(out_DM),.d1(d1),.d2(d2),.d3(d3),.d4(d4));
+  
+  MUX M3 (.A(result), .B(out_DM), .sel(MemtoReg), .out(wtData) );
+  
+  
+endmodule
+  

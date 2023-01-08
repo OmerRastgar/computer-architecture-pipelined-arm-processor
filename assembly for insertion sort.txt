@@ -1,0 +1,43 @@
+addi x10, x0, 0x000
+li x3, 5
+li x11, 24 #len of array
+li x4, 3
+li x16, 9
+li x19,4
+li x6, 8 
+li x5,8
+
+sw x6, 0x000(x10)
+sw x3, 0x008(x10)
+sw x4, 0x0010(x10)
+sw x16, 0x018(x10)
+
+
+Insertion:
+
+li x14, 8#i 
+
+for:
+addi x18,x14,0  #j 
+
+while:
+sub x19,x18,x5
+add x21,x10,x18
+add x20,x10,x19 
+lw x22, 0(x20)     
+lw x23, 0(x21) 		
+bgt x22,x23 swap
+
+# loop 
+addi x14,x14,8
+blt x14,x11, for
+beq x0 x0 end
+
+swap: 
+sw x23, 0(x20)     #A[j-1]= x23
+sw x22, 0(x21) 		#A[j] = temp
+sub x18,x18,x5
+beq x18 x0 for
+bge x18 x0 while
+
+end:
